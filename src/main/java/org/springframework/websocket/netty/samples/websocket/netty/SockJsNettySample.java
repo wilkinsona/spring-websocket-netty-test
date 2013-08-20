@@ -16,9 +16,12 @@ import io.netty.util.internal.logging.Slf4JLoggerFactory;
 
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 
-public class NettySample {
+public class SockJsNettySample {
 
 	public void run(int port) throws Exception {
+		System.setProperty("org.slf4j.simpleLogger.defaultLogLevel", "debug");
+		InternalLoggerFactory.setDefaultFactory(new Slf4JLoggerFactory());
+
 		final AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext(
 				RootConfig.class);
 
@@ -34,7 +37,7 @@ public class NettySample {
 					ChannelPipeline pipeline = ch.pipeline();
 					pipeline.addLast("codec-http", new HttpServerCodec());
 					pipeline.addLast("aggregator", new HttpObjectAggregator(65536));
-					pipeline.addLast("main", context.getBean(HttpMessageHandler.class));
+					pipeline.addLast("main", context.getBean(SockJsHttpMessageHandler.class));
 				}
 			});
 			Channel ch = b.bind(port).sync().channel();
@@ -50,6 +53,6 @@ public class NettySample {
 
 
 	public static void main(String[] args) throws Exception {
-		new NettySample().run(8080);
+		new SockJsNettySample().run(8080);
 	}
 }

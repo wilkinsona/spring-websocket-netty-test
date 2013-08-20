@@ -50,7 +50,7 @@
         }
     </style>
 
-	<script src="http://cdn.sockjs.org/sockjs-0.3.min.js"></script>
+	<script src="http://cdn.sockjs.org/sockjs-0.3.4.js"></script>
 
     <script type="text/javascript">
         var ws = null;
@@ -72,7 +72,7 @@
             // protocols_whitelist: ['websocket', 'xdr-streaming', 'xhr-streaming', 'iframe-eventsource',
             //     'iframe-htmlfile', 'xdr-polling', 'xhr-polling', 'iframe-xhr-polling', 'jsonp-polling']
             
-            ws = new SockJS('/spring-websocket-test/echoSockJS', undefined, {protocols_whitelist: [transport]});
+            ws = new SockJS('/echoSockJS', undefined, {protocols_whitelist: [transport], debug: true});
 
             ws.onopen = function () {
                 setConnected(true);
@@ -136,7 +136,7 @@
             </select>
         </div>
         <div>
-            <input id="target" type="text" size="40" style="width: 350px" value="/spring-websocket-test/echoSockJS"/>
+            <input id="target" type="text" size="40" style="width: 350px" value="/echoSockJS"/>
         </div>
         <div>
             <button id="connect" onclick="connect();">Connect</button>

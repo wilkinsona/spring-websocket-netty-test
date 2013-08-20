@@ -17,13 +17,13 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.server.ServerHttpAsyncRequestControl;
 import org.springframework.http.server.ServerHttpRequest;
 import org.springframework.http.server.ServerHttpResponse;
+import org.springframework.util.Assert;
 
 public class NettyServerHttpRequest implements ServerHttpRequest {
 
-	private ChannelHandlerContext ctx;
+	private final ChannelHandlerContext ctx;
 
-	private FullHttpRequest req;
-
+	private final FullHttpRequest req;
 
 	public NettyServerHttpRequest(ChannelHandlerContext ctx, FullHttpRequest request) {
 		this.ctx = ctx;
@@ -87,8 +87,42 @@ public class NettyServerHttpRequest implements ServerHttpRequest {
 
 	@Override
 	public ServerHttpAsyncRequestControl getAsyncRequestControl(ServerHttpResponse response) {
-		// TODO Auto-generated method stub
-		return null;
+		Assert.isInstanceOf(NettyServerHttpResponse.class, response);
+		final NettyServerHttpResponse nettyResponse = (NettyServerHttpResponse)response;
+
+		return new ServerHttpAsyncRequestControl() {
+
+			private volatile boolean started;
+
+			private volatile boolean completed;
+
+			@Override
+			public void start() {
+				start(-1);
+			}
+
+			@Override
+			public void start(long timeout) {
+				this.started = true;
+				nettyResponse.becomeAsync();
+			}
+
+			@Override
+			public boolean isStarted() {
+				return this.started;
+			}
+
+			@Override
+			public void complete() {
+				ctx.channel().flush();
+				ctx.channel().close();
+			}
+
+			@Override
+			public boolean isCompleted() {
+				return this.completed;
+			}
+		};
 	}
 
 }
