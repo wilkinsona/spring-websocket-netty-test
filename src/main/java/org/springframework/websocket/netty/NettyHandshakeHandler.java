@@ -8,13 +8,15 @@ import io.netty.handler.codec.http.websocketx.WebSocketServerHandshaker;
 import io.netty.handler.codec.http.websocketx.WebSocketServerHandshakerFactory;
 
 import java.io.IOException;
+import java.util.Map;
 
 import org.springframework.http.server.ServerHttpRequest;
 import org.springframework.http.server.ServerHttpResponse;
 import org.springframework.util.Assert;
-import org.springframework.websocket.WebSocketHandler;
-import org.springframework.websocket.WebSocketSession;
-import org.springframework.websocket.server.HandshakeHandler;
+import org.springframework.web.socket.WebSocketHandler;
+import org.springframework.web.socket.WebSocketSession;
+import org.springframework.web.socket.server.HandshakeFailureException;
+import org.springframework.web.socket.server.HandshakeHandler;
 
 public class NettyHandshakeHandler implements HandshakeHandler {
 
@@ -26,7 +28,7 @@ public class NettyHandshakeHandler implements HandshakeHandler {
 
 	@Override
 	public boolean doHandshake(ServerHttpRequest request, ServerHttpResponse response,
-			WebSocketHandler webSocketHandler) throws IOException {
+			WebSocketHandler webSocketHandler, Map<String, Object> attributes) {
 		Assert.isInstanceOf(NettyServerHttpRequest.class, request);
 		Assert.isInstanceOf(NettyServerHttpResponse.class, response);
 		return doHandshake((NettyServerHttpRequest) request,
@@ -35,7 +37,7 @@ public class NettyHandshakeHandler implements HandshakeHandler {
 
 	private boolean doHandshake(final NettyServerHttpRequest request,
 			final NettyServerHttpResponse response,
-			final WebSocketHandler webSocketHandler) throws IOException {
+			final WebSocketHandler webSocketHandler) throws HandshakeFailureException {
 		final WebSocketServerHandshaker handshaker = handshakerFactory.newHandshaker(request.getFullHttpRequest());
 		if (handshaker == null) {
 			WebSocketServerHandshakerFactory.sendUnsupportedWebSocketVersionResponse(response.getChannel());

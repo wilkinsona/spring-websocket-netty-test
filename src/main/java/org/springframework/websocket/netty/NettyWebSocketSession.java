@@ -3,11 +3,16 @@ package org.springframework.websocket.netty;
 import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
 
 import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.net.SocketAddress;
 import java.net.URI;
+import java.security.Principal;
+import java.util.Map;
 
-import org.springframework.websocket.CloseStatus;
-import org.springframework.websocket.WebSocketMessage;
-import org.springframework.websocket.WebSocketSession;
+import org.springframework.http.HttpHeaders;
+import org.springframework.web.socket.CloseStatus;
+import org.springframework.web.socket.WebSocketMessage;
+import org.springframework.web.socket.WebSocketSession;
 
 
 public class NettyWebSocketSession implements WebSocketSession {
@@ -31,13 +36,7 @@ public class NettyWebSocketSession implements WebSocketSession {
 	}
 
 	@Override
-	public boolean isSecure() {
-		// TODO Auto-generated method stub
-		return false;
-	}
-
-	@Override
-	public URI getURI() {
+	public URI getUri() {
 		// TODO Auto-generated method stub
 		return null;
 	}
@@ -47,7 +46,7 @@ public class NettyWebSocketSession implements WebSocketSession {
 		Object payload = message.getPayload();
 		if (payload instanceof String) {
 			TextWebSocketFrame frame = new TextWebSocketFrame((String) payload);
-			response.getChannel().write(frame);
+			response.getChannel().writeAndFlush(frame);
 		}
 		// TODO Auto-generated method stub
 
@@ -63,6 +62,49 @@ public class NettyWebSocketSession implements WebSocketSession {
 	public void close(CloseStatus status) throws IOException {
 		// TODO Auto-generated method stub
 
+	}
+
+	@Override
+	public HttpHeaders getHandshakeHeaders() {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	@Override
+	public Map<String, Object> getHandshakeAttributes() {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	@Override
+	public Principal getPrincipal() {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	@Override
+	public InetSocketAddress getLocalAddress() {
+		return getInetSocketAddressFrom(response.getChannel().localAddress());
+	}
+
+	@Override
+	public InetSocketAddress getRemoteAddress() {
+		return getInetSocketAddressFrom(response.getChannel().localAddress());
+	}
+
+	@Override
+	public String getAcceptedProtocol() {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	private InetSocketAddress getInetSocketAddressFrom(SocketAddress socketAddress) {
+		if (socketAddress instanceof InetSocketAddress) {
+			return (InetSocketAddress) socketAddress;
+		}
+		else {
+			return null;
+		}
 	}
 
 }

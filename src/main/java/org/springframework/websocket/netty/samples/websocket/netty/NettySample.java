@@ -33,15 +33,16 @@ public class NettySample {
 					ChannelPipeline pipeline = ch.pipeline();
 					pipeline.addLast("codec-http", new HttpServerCodec());
 					pipeline.addLast("aggregator", new HttpObjectAggregator(65536));
-					pipeline.addLast("main", context.getBean(HtppMessageHandler.class));
+					pipeline.addLast("main", context.getBean(HttpMessageHandler.class));
 				}
 			});
 			Channel ch = b.bind(port).sync().channel();
 			ch.closeFuture().sync();
 		}
 		finally {
-			bossGroup.shutdown();
-			workerGroup.shutdown();
+			bossGroup.shutdownGracefully();
+			workerGroup.shutdownGracefully();
+			context.close();
 		}
 	}
 

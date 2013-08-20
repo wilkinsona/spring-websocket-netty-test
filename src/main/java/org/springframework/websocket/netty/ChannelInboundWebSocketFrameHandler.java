@@ -4,8 +4,7 @@ package org.springframework.websocket.netty;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.ChannelInboundMessageHandler;
-import io.netty.channel.ChannelInboundMessageHandlerAdapter;
+import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.http.websocketx.BinaryWebSocketFrame;
 import io.netty.handler.codec.http.websocketx.CloseWebSocketFrame;
 import io.netty.handler.codec.http.websocketx.ContinuationWebSocketFrame;
@@ -24,13 +23,12 @@ import java.util.List;
 import java.util.Map;
 
 import org.springframework.core.GenericTypeResolver;
-import org.springframework.websocket.BinaryMessage;
-import org.springframework.websocket.CloseStatus;
-import org.springframework.websocket.TextMessage;
-import org.springframework.websocket.WebSocketHandler;
-import org.springframework.websocket.WebSocketMessage;
-import org.springframework.websocket.WebSocketSession;
-import org.springframework.websocket.adapter.WebSocketHandlerInvoker;
+import org.springframework.web.socket.BinaryMessage;
+import org.springframework.web.socket.CloseStatus;
+import org.springframework.web.socket.TextMessage;
+import org.springframework.web.socket.WebSocketHandler;
+import org.springframework.web.socket.WebSocketMessage;
+import org.springframework.web.socket.WebSocketSession;
 
 /**
  * A Netty {@link ChannelInboundMessageHandler} that manages incoming
@@ -39,7 +37,7 @@ import org.springframework.websocket.adapter.WebSocketHandlerInvoker;
  * @author Phillip Webb
  */
 public class ChannelInboundWebSocketFrameHandler extends
-		ChannelInboundMessageHandlerAdapter<WebSocketFrame> {
+		SimpleChannelInboundHandler<WebSocketFrame> {
 
 	private Map<Class<?>, FrameHandler<?>> frameHandlers;
 
@@ -59,7 +57,7 @@ public class ChannelInboundWebSocketFrameHandler extends
 			WebSocketSession session, WebSocketHandler handler) {
 		this.handshaker = handshaker;
 		this.session = session;
-		this.handler = new WebSocketHandlerInvoker(handler);
+		this.handler = handler;
 		addFrameHandlers();
 	}
 
@@ -80,7 +78,7 @@ public class ChannelInboundWebSocketFrameHandler extends
 
 	@Override
 	@SuppressWarnings({ "unchecked", "rawtypes" })
-	public void messageReceived(ChannelHandlerContext ctx, WebSocketFrame frame)
+	public void channelRead0(ChannelHandlerContext ctx, WebSocketFrame frame)
 			throws Exception {
 
 		try {
@@ -149,8 +147,8 @@ public class ChannelInboundWebSocketFrameHandler extends
 
 		@Override
 		public void handle(ChannelHandlerContext ctx, PingWebSocketFrame frame) {
-			frame.data().retain();
-			ctx.channel().write(new PongWebSocketFrame(frame.data()));
+			frame.content().retain();
+			ctx.channel().write(new PongWebSocketFrame(frame.content()));
 		}
 	}
 
@@ -168,7 +166,12 @@ public class ChannelInboundWebSocketFrameHandler extends
 		@Override
 		public void handle(ChannelHandlerContext ctx, T frame) {
 			if (frame.isFinalFragment()) {
-				handler.handleMessage(session, createMessage(Collections.singletonList(extractPayload(frame))));
+				try {
+					handler.handleMessage(session, createMessage(Collections.singletonList(extractPayload(frame))));
+				} catch (Exception e) {
+					// TODO Error handling
+					e.printStackTrace();
+				}
 			}
 			else {
 				this.payloads = new LinkedList<P>();
@@ -179,7 +182,12 @@ public class ChannelInboundWebSocketFrameHandler extends
 		public void handleContinuation(ContinuationWebSocketFrame continuationFrame) {
 			this.payloads.add(extractPayload(continuationFrame));
 			if (continuationFrame.isFinalFragment()) {
-				handler.handleMessage(session, createMessage(this.payloads));
+				try {
+					handler.handleMessage(session, createMessage(this.payloads));
+				} catch (Exception e) {
+					// TODO Error handling
+					e.printStackTrace();
+				}
 			}
 		}
 
@@ -202,7 +210,7 @@ public class ChannelInboundWebSocketFrameHandler extends
 
 		@Override
 		protected String extractPayload(WebSocketFrame frame) {
-			return frame.data().toString(CharsetUtil.UTF_8);
+			return frame.content().toString(CharsetUtil.UTF_8);
 		}
 
 		@Override
@@ -228,8 +236,8 @@ public class ChannelInboundWebSocketFrameHandler extends
 
 		@Override
 		protected ByteBuffer extractPayload(WebSocketFrame frame) {
-			byte[] bytes = new byte[frame.data().readableBytes()];
-			frame.data().readBytes(bytes);
+			byte[] bytes = new byte[frame.content().readableBytes()];
+			frame.content().readBytes(bytes);
 			return ByteBuffer.wrap(bytes);
 		}
 

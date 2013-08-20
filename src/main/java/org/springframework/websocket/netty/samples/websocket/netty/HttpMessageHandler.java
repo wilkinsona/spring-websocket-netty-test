@@ -13,16 +13,15 @@ import static io.netty.handler.codec.http.HttpResponseStatus.OK;
 import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
 
 import java.io.IOException;
+import java.util.Collections;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.ChannelInboundMessageHandlerAdapter;
-import io.netty.example.http.websocketx.server.WebSocketServerIndexPage;
+import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.http.DefaultFullHttpResponse;
-import io.netty.handler.codec.http.FullHttpMessage;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.FullHttpResponse;
 import io.netty.handler.codec.http.websocketx.WebSocketServerHandshakerFactory;
@@ -33,6 +32,7 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Component;
 import org.springframework.util.FileCopyUtils;
+import org.springframework.web.socket.server.HandshakeHandler;
 import org.springframework.websocket.netty.NettyHandshakeHandler;
 import org.springframework.websocket.netty.NettyServerHttpRequest;
 import org.springframework.websocket.netty.NettyServerHttpResponse;
@@ -41,18 +41,18 @@ import org.springframework.websocket.netty.samples.websocket.netty.echo.EchoWebS
 
 @Component
 @Scope("prototype")
-public class HtppMessageHandler extends
-		ChannelInboundMessageHandlerAdapter<FullHttpRequest> {
+public class HttpMessageHandler extends
+		SimpleChannelInboundHandler<FullHttpRequest> {
 
 	private EchoService echoService;
 
 	@Autowired
-	public HtppMessageHandler(EchoService echoService) {
+	public HttpMessageHandler(EchoService echoService) {
 		this.echoService = echoService;
 	}
 
 	@Override
-	public void messageReceived(ChannelHandlerContext ctx, FullHttpRequest req)
+	public void channelRead0(ChannelHandlerContext ctx, FullHttpRequest req)
 			throws Exception {
 
 		// Ripped from the netty websocket sample
@@ -110,22 +110,22 @@ public class HtppMessageHandler extends
 		NettyServerHttpResponse serverHttpResponse = new NettyServerHttpResponse(ctx);
 
 		// Handshake
-		NettyHandshakeHandler handshakeHandler = new NettyHandshakeHandler(handshakerFactory);
+		HandshakeHandler handshakeHandler = new NettyHandshakeHandler(handshakerFactory);
 		handshakeHandler.doHandshake(serverHttpRequest, serverHttpResponse,
-				webSocketHandler);
+				webSocketHandler, Collections.<String, Object>emptyMap());
 	}
 
 	private static void sendHttpResponse(ChannelHandlerContext ctx, FullHttpRequest req,
 			FullHttpResponse res) {
 		// Generate an error page if response getStatus code is not OK (200).
 		if (res.getStatus().code() != 200) {
-			res.data().writeBytes(
+			res.content().writeBytes(
 					Unpooled.copiedBuffer(res.getStatus().toString(), CharsetUtil.UTF_8));
-			setContentLength(res, res.data().readableBytes());
+			setContentLength(res, res.content().readableBytes());
 		}
 
 		// Send the response and close the connection if necessary.
-		ChannelFuture f = ctx.channel().write(res);
+		ChannelFuture f = ctx.channel().writeAndFlush(res);
 		if (!isKeepAlive(req) || res.getStatus().code() != 200) {
 			f.addListener(ChannelFutureListener.CLOSE);
 		}

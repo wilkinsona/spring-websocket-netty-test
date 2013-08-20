@@ -2,32 +2,29 @@ package org.springframework.websocket.netty;
 
 import io.netty.buffer.ByteBufInputStream;
 import io.netty.channel.ChannelHandlerContext;
-import io.netty.handler.codec.http.Cookie;
-import io.netty.handler.codec.http.CookieDecoder;
 import io.netty.handler.codec.http.FullHttpRequest;
-import io.netty.handler.codec.http.QueryStringDecoder;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.security.Principal;
 import java.util.Map;
-import java.util.Set;
 
-import org.springframework.http.Cookies;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
-import org.springframework.http.server.AsyncServerHttpRequest;
-import org.springframework.util.CollectionUtils;
-import org.springframework.util.MultiValueMap;
+import org.springframework.http.server.ServerHttpAsyncRequestControl;
+import org.springframework.http.server.ServerHttpRequest;
+import org.springframework.http.server.ServerHttpResponse;
 
-public class NettyServerHttpRequest implements AsyncServerHttpRequest {
+public class NettyServerHttpRequest implements ServerHttpRequest {
 
 	private ChannelHandlerContext ctx;
 
 	private FullHttpRequest req;
 
-	
+
 	public NettyServerHttpRequest(ChannelHandlerContext ctx, FullHttpRequest request) {
 		this.ctx = ctx;
 		this.req = request;
@@ -58,52 +55,8 @@ public class NettyServerHttpRequest implements AsyncServerHttpRequest {
 	}
 
 	@Override
-	public Cookies getCookies() {
-		Cookies cookies = new Cookies();
-		String header = req.headers().get("Cookie");
-		if(header != null) {
-			// FIXME better as an adapter
-			// FIXME Cookie may need more in it
-			Set<Cookie> decoded = CookieDecoder.decode(header);
-			for (Cookie cookie : decoded) {
-				cookies.addCookie(cookie.getName(), cookie.getValue());
-			}
-		}
-		return cookies;
-	}
-
-	@Override
 	public InputStream getBody() throws IOException {
-		return new ByteBufInputStream(req.data());
-	}
-
-	@Override
-	public MultiValueMap<String, String> getQueryParams() {
-		QueryStringDecoder decoder = new QueryStringDecoder(req.getUri());
-		return CollectionUtils.toMultiValueMap(decoder.parameters());
-	}
-
-	@Override
-	public void startAsync() {
-	}
-
-	@Override
-	public boolean isAsyncStarted() {
-		return false;
-	}
-
-	@Override
-	public void completeAsync() {
-	}
-
-	@Override
-	public boolean isAsyncCompleted() {
-		// TODO Auto-generated method stub
-		return false;
-	}
-
-	@Override
-	public void setTimeout(long timeout) {
+		return new ByteBufInputStream(req.content());
 	}
 
 	public FullHttpRequest getFullHttpRequest() {
@@ -112,6 +65,30 @@ public class NettyServerHttpRequest implements AsyncServerHttpRequest {
 
 	public ChannelHandlerContext getChannelHandlerContext() {
 		return this.ctx;
+	}
+
+	@Override
+	public Principal getPrincipal() {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	@Override
+	public InetSocketAddress getLocalAddress() {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	@Override
+	public InetSocketAddress getRemoteAddress() {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	@Override
+	public ServerHttpAsyncRequestControl getAsyncRequestControl(ServerHttpResponse response) {
+		// TODO Auto-generated method stub
+		return null;
 	}
 
 }

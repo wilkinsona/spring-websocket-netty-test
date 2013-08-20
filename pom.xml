@@ -6,7 +6,7 @@
 	<version>1.0.0-SNAPSHOT</version>
 
 	<properties>
-		<org.springframework-version>4.0.0.WEBSOCKET-SNAPSHOT</org.springframework-version>
+		<org.springframework-version>4.0.0.BUILD-SNAPSHOT</org.springframework-version>
 		<tomcat-version>8.0-SNAPSHOT</tomcat-version>
 	</properties>
 
@@ -37,7 +37,7 @@
 		<dependency>
 			<groupId>io.netty</groupId>
 			<artifactId>netty-all</artifactId>
-			<version>4.0.0.CR1</version>
+			<version>4.0.7.Final</version>
 		</dependency>
 
 		<!--  For SockJS -->

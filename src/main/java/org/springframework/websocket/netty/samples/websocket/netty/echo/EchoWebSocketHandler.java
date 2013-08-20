@@ -21,10 +21,9 @@ import java.io.IOException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.websocket.TextMessage;
-import org.springframework.websocket.WebSocketHandler;
-import org.springframework.websocket.WebSocketSession;
-import org.springframework.websocket.adapter.WebSocketHandlerAdapter;
+import org.springframework.web.socket.TextMessage;
+import org.springframework.web.socket.WebSocketSession;
+import org.springframework.web.socket.adapter.WebSocketHandlerAdapter;
 
 /**
  * Echo messages by implementing a Spring {@link WebSocketHandler} abstraction.
