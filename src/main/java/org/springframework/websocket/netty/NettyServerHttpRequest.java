@@ -20,11 +20,19 @@ import org.springframework.http.server.ServerHttpRequest;
 import org.springframework.http.server.ServerHttpResponse;
 import org.springframework.util.Assert;
 
+
+/**
+ * {@link ServerHttpRequest} implementation that is based upon a {@link
+ * FullHttpRequest} from Netty.
+ *
+ * @author Andy Wilkinson
+ */
 public class NettyServerHttpRequest implements ServerHttpRequest {
 
 	private final ChannelHandlerContext ctx;
 
 	private final FullHttpRequest req;
+
 
 	public NettyServerHttpRequest(ChannelHandlerContext ctx, FullHttpRequest request) {
 		this.ctx = ctx;
@@ -76,14 +84,12 @@ public class NettyServerHttpRequest implements ServerHttpRequest {
 
 	@Override
 	public InetSocketAddress getLocalAddress() {
-		// TODO Auto-generated method stub
-		return null;
+		return SocketAddressUtils.convertToInetSocketAddress(this.ctx.channel().localAddress());
 	}
 
 	@Override
 	public InetSocketAddress getRemoteAddress() {
-		// TODO Auto-generated method stub
-		return null;
+		return SocketAddressUtils.convertToInetSocketAddress(this.ctx.channel().remoteAddress());
 	}
 
 	@Override
@@ -105,7 +111,7 @@ public class NettyServerHttpRequest implements ServerHttpRequest {
 			@Override
 			public void start(long timeout) {
 				this.started = true;
-				nettyResponse.becomeAsync();
+				nettyResponse.setAsync();
 			}
 
 			@Override

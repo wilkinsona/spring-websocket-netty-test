@@ -18,6 +18,11 @@ import org.springframework.web.socket.server.HandshakeFailureException;
 import org.springframework.web.socket.server.RequestUpgradeStrategy;
 import org.springframework.util.Assert;
 
+/**
+ * Netty support for upgrading an HTTP request during a WebSocket handshake.
+ *
+ * @author Andy Wilkinson
+ */
 public class NettyRequestUpgradeStrategy implements RequestUpgradeStrategy {
 
 	@Override
@@ -27,17 +32,18 @@ public class NettyRequestUpgradeStrategy implements RequestUpgradeStrategy {
 
 	@Override
 	public void upgrade(ServerHttpRequest request, ServerHttpResponse response, String acceptedProtocol,
-			final WebSocketHandler wsHandler, Map<String, Object> attributes) throws HandshakeFailureException {
+			final WebSocketHandler wsHandler, final Map<String, Object> attributes) throws HandshakeFailureException {
 		Assert.isInstanceOf(NettyServerHttpRequest.class, request);
 		Assert.isInstanceOf(NettyServerHttpResponse.class, response);
 
-		NettyServerHttpRequest nettyRequest = (NettyServerHttpRequest)request;
+		final NettyServerHttpRequest nettyRequest = (NettyServerHttpRequest)request;
 		final NettyServerHttpResponse nettyResponse = (NettyServerHttpResponse)response;
 
 		WebSocketServerHandshakerFactory handshakerFactory = new WebSocketServerHandshakerFactory(
 				getWebSocketLocation(nettyRequest.getFullHttpRequest()), null, false);
 
-		final WebSocketServerHandshaker handshaker = handshakerFactory.newHandshaker(nettyRequest.getFullHttpRequest());
+		final WebSocketServerHandshaker handshaker =
+				handshakerFactory.newHandshaker(nettyRequest.getFullHttpRequest());
 
 		if (handshaker == null) {
 			WebSocketServerHandshakerFactory.sendUnsupportedWebSocketVersionResponse(nettyResponse.getChannel());
@@ -51,33 +57,14 @@ public class NettyRequestUpgradeStrategy implements RequestUpgradeStrategy {
 
 				@Override
 				public void operationComplete(ChannelFuture future) throws Exception {
-
-					// At this point HttpRequestDecoder or HttpServerCodec
-					// will have been removed by the WebSocketServerHandshaker
-					// and WebSocketFrameEncoder / WebSocketFrameDecoders will
-					// be plugged in
-
-					// We need to add a ChannelHandler that can delegate to
-					// our provider
 					ChannelPipeline pipeline = future.channel().pipeline();
-					WebSocketSession session = new NettyWebSocketSession(nettyResponse);
+					WebSocketSession session = new NettyWebSocketSession(nettyRequest.getHeaders(), attributes,
+							handshaker.selectedSubprotocol(), nettyRequest.getURI(), nettyResponse.getChannel());
 					pipeline.addLast(new ChannelInboundWebSocketFrameHandler(handshaker, session, wsHandler));
 
 					wsHandler.afterConnectionEstablished(session);
 				}
 			});
-
-			// FIXME how should we deal with this? should we wait?
-			await(future);
-		}
-	}
-
-	private void await(ChannelFuture future) {
-		try {
-			future.await();
-		}
-		catch (InterruptedException ex) {
-			throw new IllegalStateException(ex);
 		}
 	}
 

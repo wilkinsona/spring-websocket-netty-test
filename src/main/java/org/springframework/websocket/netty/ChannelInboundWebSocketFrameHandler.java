@@ -31,10 +31,11 @@ import org.springframework.web.socket.WebSocketMessage;
 import org.springframework.web.socket.WebSocketSession;
 
 /**
- * A Netty {@link ChannelInboundMessageHandler} that manages incoming
- * {@link WebSocketFrame}s, delegating to a {@link WebSocketHandler}.
+ * A Netty {@link ChannelInboundHandler} that handless incoming {@link
+ * WebSocketFrame}s, delegating to a {@link WebSocketHandler}.
  *
  * @author Phillip Webb
+ * @author Andy Wilkinson
  */
 public class ChannelInboundWebSocketFrameHandler extends
 		SimpleChannelInboundHandler<WebSocketFrame> {
@@ -109,16 +110,20 @@ public class ChannelInboundWebSocketFrameHandler extends
 
 	/**
 	 * Strategy used to handling incoming frames
+	 *
 	 * @param <T> the type of frame to handler
 	 */
 	private abstract class FrameHandler<T extends WebSocketFrame> {
 
 		/**
 		 * Handle an incoming frame.
-		 * @param ctx the channel handler context
+		 *
+		 * @param ctx the channel handler context on which the frame was received
 		 * @param frame the incoming frame
+		 *
+		 * @throws Exception if an error occurs when handling the frame
 		 */
-		public abstract void handle(ChannelHandlerContext ctx, T frame);
+		public abstract void handle(ChannelHandlerContext ctx, T frame) throws Exception;
 	}
 
 
@@ -165,14 +170,9 @@ public class ChannelInboundWebSocketFrameHandler extends
 		private List<P> payloads;
 
 		@Override
-		public void handle(ChannelHandlerContext ctx, T frame) {
+		public void handle(ChannelHandlerContext ctx, T frame) throws Exception {
 			if (frame.isFinalFragment()) {
-				try {
-					handler.handleMessage(session, createMessage(Collections.singletonList(extractPayload(frame))));
-				} catch (Exception e) {
-					// TODO Error handling
-					e.printStackTrace();
-				}
+				handler.handleMessage(session, createMessage(Collections.singletonList(extractPayload(frame))));
 			}
 			else {
 				this.payloads = new LinkedList<P>();
@@ -180,15 +180,10 @@ public class ChannelInboundWebSocketFrameHandler extends
 			}
 		}
 
-		public void handleContinuation(ContinuationWebSocketFrame continuationFrame) {
+		public void handleContinuation(ContinuationWebSocketFrame continuationFrame) throws Exception {
 			this.payloads.add(extractPayload(continuationFrame));
 			if (continuationFrame.isFinalFragment()) {
-				try {
-					handler.handleMessage(session, createMessage(this.payloads));
-				} catch (Exception e) {
-					// TODO Error handling
-					e.printStackTrace();
-				}
+				handler.handleMessage(session, createMessage(this.payloads));
 			}
 		}
 

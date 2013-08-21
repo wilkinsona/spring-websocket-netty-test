@@ -22,7 +22,12 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.server.ServerHttpResponse;
 
-
+/**
+ * {@link ServerHttpResponse} implementation that is based on a Netty {@link
+ * HttpResponse}.
+ *
+ * @author Andy Wilkinson
+ */
 public class NettyServerHttpResponse implements ServerHttpResponse {
 
 	private final Log logger = LogFactory.getLog(NettyServerHttpResponse.class);
@@ -32,15 +37,21 @@ public class NettyServerHttpResponse implements ServerHttpResponse {
 	private final HttpResponse httpResponse =
 			new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
 
-	private final ChannelHandlerContext ctx;
+	private final ChannelHandlerContext context;
 
 	private volatile boolean headersWritten;
 
 	private volatile boolean async;
 
 
-	public NettyServerHttpResponse(ChannelHandlerContext ctx) {
-		this.ctx = ctx;
+	/**
+	 * Creates a new {@code NettyServerHttpResponse} that will send date to
+	 * the channel in the given {@code context}.
+	 *
+	 * @param context The context for the response
+	 */
+	public NettyServerHttpResponse(ChannelHandlerContext context) {
+		this.context = context;
 	}
 
 	@Override
@@ -52,18 +63,18 @@ public class NettyServerHttpResponse implements ServerHttpResponse {
 			public void write(int b) throws IOException {
 				writeHeaders();
 
-				ByteBuf buffer = ctx.alloc().buffer(1).writeByte(b);
+				ByteBuf buffer = context.alloc().buffer(1).writeByte(b);
 				HttpContent content = new DefaultHttpContent(buffer);
-				ctx.channel().write(content);
+				context.channel().write(content);
 			}
 
 			@Override
 			public void write(byte[] b, int off, int len) throws IOException {
 				writeHeaders();
 
-				ByteBuf buffer = ctx.alloc().buffer(len).writeBytes(b, off, len);
+				ByteBuf buffer = context.alloc().buffer(len).writeBytes(b, off, len);
 				HttpContent content = new DefaultHttpContent(buffer);
-				ctx.channel().write(content);
+				context.channel().write(content);
 			}
 
 			@Override
@@ -80,21 +91,13 @@ public class NettyServerHttpResponse implements ServerHttpResponse {
 
 	@Override
 	public void setStatusCode(HttpStatus status) {
-		logger.debug("Set status to " + status + " on " + this);
-		if (status == HttpStatus.NO_CONTENT) {
-			this.httpResponse.setStatus(HttpResponseStatus.NO_CONTENT);
-		} else if (status == HttpStatus.NOT_FOUND) {
-			this.httpResponse.setStatus(HttpResponseStatus.NOT_FOUND);
-		} else {
-			logger.error(status + " has not been mapped to a Netty HttpResponseStatus");
-		}
+		this.httpResponse.setStatus(HttpResponseStatus.valueOf(status.value()));
 	}
 
 	@Override
 	public void flush() throws IOException {
-		logger.debug("Flushing response " + this);
 		writeHeaders();
-		this.ctx.channel().flush();
+		this.context.channel().flush();
 	}
 
 	@Override
@@ -102,34 +105,41 @@ public class NettyServerHttpResponse implements ServerHttpResponse {
 		writeHeaders();
 
 		if (!this.async) {
-			this.ctx.channel().writeAndFlush(LastHttpContent.EMPTY_LAST_CONTENT);
-			logger.debug("Closed response " + this);
-		} else {
-			logger.debug("Supressing close as response is async " + this);
+			this.context.channel().writeAndFlush(LastHttpContent.EMPTY_LAST_CONTENT);
 		}
 	}
 
+	/**
+	 * Returns the channel to which this response will be written
+	 *
+	 * @return The response channel
+	 */
 	public Channel getChannel() {
-		return this.ctx.channel();
+		return this.context.channel();
 	}
 
-	public void becomeAsync() {
+	/**
+	 * Marks this response as being asynchronous
+	 */
+	public void setAsync() {
 		this.async = true;
 	}
 
+	/**
+	 * Returns {@code true} if the response is asynchronous, otherwise {@code false}.
+	 */
 	public boolean isAsync() {
 		return this.async;
 	}
 
 	private void writeHeaders() {
 		if (!this.headersWritten) {
-			logger.debug("Writing headers: " + this.httpHeaders + " for " + this);
 			io.netty.handler.codec.http.HttpHeaders nettyHttpHeaders = this.httpResponse.headers();
 			for (Entry<String, List<String>> header: this.httpHeaders.entrySet()) {
 				nettyHttpHeaders.add(header.getKey(), header.getValue());
 			}
 			io.netty.handler.codec.http.HttpHeaders.setTransferEncodingChunked(this.httpResponse);
-			this.ctx.channel().write(this.httpResponse);
+			this.context.channel().write(this.httpResponse);
 			this.headersWritten = true;
 		}
 	}
