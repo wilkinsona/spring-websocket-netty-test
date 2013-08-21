@@ -4,9 +4,7 @@ package org.springframework.websocket.netty.samples.websocket.netty;
 import static io.netty.handler.codec.http.HttpHeaders.isKeepAlive;
 import static io.netty.handler.codec.http.HttpHeaders.setContentLength;
 import static io.netty.handler.codec.http.HttpHeaders.Names.CONTENT_TYPE;
-import static io.netty.handler.codec.http.HttpMethod.GET;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
-import static io.netty.handler.codec.http.HttpResponseStatus.FORBIDDEN;
 import static io.netty.handler.codec.http.HttpResponseStatus.NOT_FOUND;
 import static io.netty.handler.codec.http.HttpResponseStatus.OK;
 import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
@@ -24,6 +22,8 @@ import io.netty.util.CharsetUtil;
 import java.io.IOException;
 import java.util.Collections;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Scope;
 import org.springframework.core.io.ClassPathResource;
@@ -31,6 +31,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.FileCopyUtils;
 import org.springframework.web.socket.server.DefaultHandshakeHandler;
 import org.springframework.web.socket.server.HandshakeHandler;
+import org.springframework.web.socket.sockjs.SockJsService;
 import org.springframework.websocket.netty.NettyRequestUpgradeStrategy;
 import org.springframework.websocket.netty.NettyServerHttpRequest;
 import org.springframework.websocket.netty.NettyServerHttpResponse;
@@ -42,28 +43,30 @@ import org.springframework.websocket.netty.samples.websocket.netty.echo.EchoWebS
 public class HttpMessageHandler extends
 		SimpleChannelInboundHandler<FullHttpRequest> {
 
+	private final Log logger = LogFactory.getLog(HttpMessageHandler.class);
+
+	private final SockJsService sockJsService;
+
 	private EchoService echoService;
 
 	@Autowired
-	public HttpMessageHandler(EchoService echoService) {
+	public HttpMessageHandler(EchoService echoService, SockJsService sockJsService) {
 		this.echoService = echoService;
+		this.sockJsService = sockJsService;
 	}
 
 	@Override
 	public void channelRead0(ChannelHandlerContext ctx, FullHttpRequest req)
 			throws Exception {
 
+		logger.debug("Handling " + req.getMethod() + " request to " + req.getUri());
+		logger.debug(ctx.channel());
+
 		// Ripped from the netty websocket sample
 
 		// Handle a bad request.
 		if (!req.getDecoderResult().isSuccess()) {
 			sendHttpResponse(ctx, req, new DefaultFullHttpResponse(HTTP_1_1, BAD_REQUEST));
-			return;
-		}
-
-		// Allow only GET methods.
-		if (req.getMethod() != GET) {
-			sendHttpResponse(ctx, req, new DefaultFullHttpResponse(HTTP_1_1, FORBIDDEN));
 			return;
 		}
 
@@ -81,6 +84,11 @@ public class HttpMessageHandler extends
 
 		if("/echoWebSocket".equals(req.getUri())) {
 			upgradeToWebSocket(ctx, req);
+			return;
+		}
+
+		if (req.getUri().startsWith("/echoSockJS")) {
+			handleSockJsRequest(ctx, req);
 			return;
 		}
 
@@ -109,6 +117,25 @@ public class HttpMessageHandler extends
 		HandshakeHandler handshakeHandler = new DefaultHandshakeHandler(new NettyRequestUpgradeStrategy());
 		handshakeHandler.doHandshake(serverHttpRequest, serverHttpResponse,
 				webSocketHandler, Collections.<String, Object>emptyMap());
+	}
+
+	/**
+	 * @param ctx
+	 * @param req
+	 * @throws IOException
+	 */
+	private void handleSockJsRequest(ChannelHandlerContext ctx, FullHttpRequest req)
+			throws IOException {
+		// Spring specifics
+
+		// FIXME handler should be injected
+		EchoWebSocketHandler webSocketHandler = new EchoWebSocketHandler(this.echoService);
+
+		// Adapt Netty to Spring
+		NettyServerHttpRequest serverHttpRequest = new NettyServerHttpRequest(ctx, req);
+		NettyServerHttpResponse serverHttpResponse = new NettyServerHttpResponse(ctx);
+
+		this.sockJsService.handleRequest(serverHttpRequest, serverHttpResponse, webSocketHandler);
 	}
 
 	private static void sendHttpResponse(ChannelHandlerContext ctx, FullHttpRequest req,

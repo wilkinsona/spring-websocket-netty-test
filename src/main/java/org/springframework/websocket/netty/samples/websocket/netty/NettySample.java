@@ -53,6 +53,6 @@ public class NettySample {
 
 
 	public static void main(String[] args) throws Exception {
-		new NettySample().run(8080);
+		new NettySample().run(8081);
 	}
 }
