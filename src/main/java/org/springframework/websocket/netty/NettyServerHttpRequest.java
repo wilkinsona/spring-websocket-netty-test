@@ -3,6 +3,7 @@ package org.springframework.websocket.netty;
 import io.netty.buffer.ByteBufInputStream;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.http.FullHttpRequest;
+import io.netty.handler.codec.http.LastHttpContent;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -114,7 +115,7 @@ public class NettyServerHttpRequest implements ServerHttpRequest {
 
 			@Override
 			public void complete() {
-				ctx.channel().flush();
+				ctx.channel().writeAndFlush(LastHttpContent.EMPTY_LAST_CONTENT);
 				ctx.channel().close();
 			}
 

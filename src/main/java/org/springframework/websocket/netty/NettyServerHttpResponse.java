@@ -1,16 +1,18 @@
 package org.springframework.websocket.netty;
 
-import static io.netty.handler.codec.http.HttpHeaders.setContentLength;
+import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
-import io.netty.handler.codec.http.DefaultFullHttpResponse;
-import io.netty.handler.codec.http.FullHttpResponse;
+import io.netty.handler.codec.http.DefaultHttpContent;
+import io.netty.handler.codec.http.DefaultHttpResponse;
+import io.netty.handler.codec.http.HttpContent;
+import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
+import io.netty.handler.codec.http.LastHttpContent;
 
 import java.io.IOException;
 import java.io.OutputStream;
-import java.nio.charset.Charset;
 import java.util.List;
 import java.util.Map.Entry;
 
@@ -27,14 +29,12 @@ public class NettyServerHttpResponse implements ServerHttpResponse {
 
 	private final HttpHeaders httpHeaders = new HttpHeaders();
 
-	private final FullHttpResponse httpResponse =
-			new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
+	private final HttpResponse httpResponse =
+			new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
 
 	private final ChannelHandlerContext ctx;
 
 	private volatile boolean headersWritten;
-
-	private volatile boolean flushed;
 
 	private volatile boolean async;
 
@@ -48,14 +48,21 @@ public class NettyServerHttpResponse implements ServerHttpResponse {
 		return new OutputStream() {
 
 			@Override
-			public void write(int arg0) throws IOException {
-				httpResponse.content().writeByte(arg0);
+			public void write(int b) throws IOException {
+				writeHeaders();
+
+				ByteBuf buffer = ctx.alloc().buffer(1).writeByte(b);
+				HttpContent content = new DefaultHttpContent(buffer);
+				ctx.channel().write(content);
 			}
 
 			@Override
 			public void write(byte[] b, int off, int len) throws IOException {
-				httpResponse.content().writeBytes(b, off, len);
-				NettyServerHttpResponse.this.flush();
+				writeHeaders();
+
+				ByteBuf buffer = ctx.alloc().buffer(len).writeBytes(b, off, len);
+				HttpContent content = new DefaultHttpContent(buffer);
+				ctx.channel().write(content);
 			}
 
 			@Override
@@ -67,7 +74,7 @@ public class NettyServerHttpResponse implements ServerHttpResponse {
 
 	@Override
 	public HttpHeaders getHeaders() {
-		return this.httpHeaders;
+		return (this.headersWritten ? HttpHeaders.readOnlyHttpHeaders(this.httpHeaders) : this.httpHeaders);
 	}
 
 	@Override
@@ -78,25 +85,26 @@ public class NettyServerHttpResponse implements ServerHttpResponse {
 		} else if (status == HttpStatus.NOT_FOUND) {
 			this.httpResponse.setStatus(HttpResponseStatus.NOT_FOUND);
 		} else {
-			logger.warn(status + " has not been mapped to a Netty HttpResponseStatus");
+			logger.error(status + " has not been mapped to a Netty HttpResponseStatus");
 		}
 	}
 
 	@Override
 	public void flush() throws IOException {
-		if (!flushed) {
-			logger.debug(this.httpResponse.content().toString(Charset.forName("UTF8")));
-			this.writeHeaders();
-			setContentLength(this.httpResponse, this.httpResponse.content().readableBytes());
-			this.ctx.channel().writeAndFlush(this.httpResponse);
-			this.flushed = true;
-			logger.debug("Wrote and flushed response for " + this);
-		}
+		writeHeaders();
+		this.ctx.channel().flush();
 	}
 
 	@Override
 	public void close() {
 		writeHeaders();
+
+		if (!this.async) {
+			this.ctx.channel().writeAndFlush(LastHttpContent.EMPTY_LAST_CONTENT);
+			logger.debug("Closed response");
+		} else {
+			logger.debug("Supressing close as response is async");
+		}
 	}
 
 	public Channel getChannel() {
@@ -118,6 +126,8 @@ public class NettyServerHttpResponse implements ServerHttpResponse {
 			for (Entry<String, List<String>> header: this.httpHeaders.entrySet()) {
 				nettyHttpHeaders.add(header.getKey(), header.getValue());
 			}
+			io.netty.handler.codec.http.HttpHeaders.setTransferEncodingChunked(this.httpResponse);
+			this.ctx.channel().write(this.httpResponse);
 			this.headersWritten = true;
 		}
 	}
