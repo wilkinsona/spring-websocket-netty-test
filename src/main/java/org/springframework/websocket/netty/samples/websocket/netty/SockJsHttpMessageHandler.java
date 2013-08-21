@@ -20,6 +20,7 @@ import io.netty.handler.codec.http.FullHttpResponse;
 import io.netty.util.CharsetUtil;
 
 import java.io.IOException;
+import java.util.Collections;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -28,7 +29,10 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Component;
 import org.springframework.util.FileCopyUtils;
+import org.springframework.web.socket.server.DefaultHandshakeHandler;
+import org.springframework.web.socket.server.HandshakeHandler;
 import org.springframework.web.socket.sockjs.SockJsService;
+import org.springframework.websocket.netty.NettyRequestUpgradeStrategy;
 import org.springframework.websocket.netty.NettyServerHttpRequest;
 import org.springframework.websocket.netty.NettyServerHttpResponse;
 import org.springframework.websocket.netty.samples.websocket.netty.echo.EchoService;
@@ -78,6 +82,11 @@ public class SockJsHttpMessageHandler extends
 			return;
 		}
 
+		if("/echoWebSocket".equals(req.getUri())) {
+			upgradeToWebSocket(ctx, req);
+			return;
+		}
+
 		if (req.getUri().startsWith("/echoSockJS")) {
 			handleSockJsRequest(ctx, req);
 			return;
@@ -85,6 +94,29 @@ public class SockJsHttpMessageHandler extends
 
 		FullHttpResponse res = new DefaultFullHttpResponse(HTTP_1_1, NOT_FOUND);
 		sendHttpResponse(ctx, req, res);
+	}
+
+	/**
+	 * @param ctx
+	 * @param req
+	 * @throws IOException
+	 */
+	private void upgradeToWebSocket(ChannelHandlerContext ctx, FullHttpRequest req)
+			throws IOException {
+
+		// Spring specifics
+
+		// FIXME handler should be injected
+		EchoWebSocketHandler webSocketHandler = new EchoWebSocketHandler(this.echoService);
+
+		// Adapt Netty to Spring
+		NettyServerHttpRequest serverHttpRequest = new NettyServerHttpRequest(ctx, req);
+		NettyServerHttpResponse serverHttpResponse = new NettyServerHttpResponse(ctx);
+
+		// Handshake
+		HandshakeHandler handshakeHandler = new DefaultHandshakeHandler(new NettyRequestUpgradeStrategy());
+		handshakeHandler.doHandshake(serverHttpRequest, serverHttpResponse,
+				webSocketHandler, Collections.<String, Object>emptyMap());
 	}
 
 	/**
@@ -104,10 +136,6 @@ public class SockJsHttpMessageHandler extends
 		NettyServerHttpResponse serverHttpResponse = new NettyServerHttpResponse(ctx);
 
 		this.sockJsService.handleRequest(serverHttpRequest, serverHttpResponse, webSocketHandler);
-
-		if (!serverHttpResponse.isAsync()) {
-			serverHttpResponse.flush();
-		}
 	}
 
 	private static void sendHttpResponse(ChannelHandlerContext ctx, FullHttpRequest req,

@@ -19,6 +19,9 @@ import org.springframework.context.annotation.AnnotationConfigApplicationContext
 public class NettySample {
 
 	public void run(int port) throws Exception {
+		System.setProperty("org.slf4j.simpleLogger.defaultLogLevel", "debug");
+		InternalLoggerFactory.setDefaultFactory(new Slf4JLoggerFactory());
+
 		final AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext(
 				RootConfig.class);
 

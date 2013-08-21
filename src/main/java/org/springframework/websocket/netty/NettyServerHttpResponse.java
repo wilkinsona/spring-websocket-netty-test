@@ -45,6 +45,7 @@ public class NettyServerHttpResponse implements ServerHttpResponse {
 
 	@Override
 	public OutputStream getBody() throws IOException {
+		logger.debug("Returning body outputstream for " + this);
 		return new OutputStream() {
 
 			@Override
@@ -91,6 +92,7 @@ public class NettyServerHttpResponse implements ServerHttpResponse {
 
 	@Override
 	public void flush() throws IOException {
+		logger.debug("Flushing response " + this);
 		writeHeaders();
 		this.ctx.channel().flush();
 	}
@@ -101,9 +103,9 @@ public class NettyServerHttpResponse implements ServerHttpResponse {
 
 		if (!this.async) {
 			this.ctx.channel().writeAndFlush(LastHttpContent.EMPTY_LAST_CONTENT);
-			logger.debug("Closed response");
+			logger.debug("Closed response " + this);
 		} else {
-			logger.debug("Supressing close as response is async");
+			logger.debug("Supressing close as response is async " + this);
 		}
 	}
 
@@ -121,7 +123,7 @@ public class NettyServerHttpResponse implements ServerHttpResponse {
 
 	private void writeHeaders() {
 		if (!this.headersWritten) {
-			logger.debug("Writing headers: " + this.httpHeaders);
+			logger.debug("Writing headers: " + this.httpHeaders + " for " + this);
 			io.netty.handler.codec.http.HttpHeaders nettyHttpHeaders = this.httpResponse.headers();
 			for (Entry<String, List<String>> header: this.httpHeaders.entrySet()) {
 				nettyHttpHeaders.add(header.getKey(), header.getValue());

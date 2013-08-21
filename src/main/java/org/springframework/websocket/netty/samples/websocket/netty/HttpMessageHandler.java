@@ -4,17 +4,12 @@ package org.springframework.websocket.netty.samples.websocket.netty;
 import static io.netty.handler.codec.http.HttpHeaders.isKeepAlive;
 import static io.netty.handler.codec.http.HttpHeaders.setContentLength;
 import static io.netty.handler.codec.http.HttpHeaders.Names.CONTENT_TYPE;
-import static io.netty.handler.codec.http.HttpHeaders.Names.HOST;
 import static io.netty.handler.codec.http.HttpMethod.GET;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static io.netty.handler.codec.http.HttpResponseStatus.FORBIDDEN;
 import static io.netty.handler.codec.http.HttpResponseStatus.NOT_FOUND;
 import static io.netty.handler.codec.http.HttpResponseStatus.OK;
 import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
-
-import java.io.IOException;
-import java.util.Collections;
-
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelFuture;
@@ -24,16 +19,19 @@ import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.http.DefaultFullHttpResponse;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.FullHttpResponse;
-import io.netty.handler.codec.http.websocketx.WebSocketServerHandshakerFactory;
 import io.netty.util.CharsetUtil;
+
+import java.io.IOException;
+import java.util.Collections;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Scope;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Component;
 import org.springframework.util.FileCopyUtils;
+import org.springframework.web.socket.server.DefaultHandshakeHandler;
 import org.springframework.web.socket.server.HandshakeHandler;
-import org.springframework.websocket.netty.NettyHandshakeHandler;
+import org.springframework.websocket.netty.NettyRequestUpgradeStrategy;
 import org.springframework.websocket.netty.NettyServerHttpRequest;
 import org.springframework.websocket.netty.NettyServerHttpResponse;
 import org.springframework.websocket.netty.samples.websocket.netty.echo.EchoService;
@@ -97,8 +95,6 @@ public class HttpMessageHandler extends
 	 */
 	private void upgradeToWebSocket(ChannelHandlerContext ctx, FullHttpRequest req)
 			throws IOException {
-		WebSocketServerHandshakerFactory handshakerFactory = new WebSocketServerHandshakerFactory(
-				getWebSocketLocation(req), null, false);
 
 		// Spring specifics
 
@@ -110,7 +106,7 @@ public class HttpMessageHandler extends
 		NettyServerHttpResponse serverHttpResponse = new NettyServerHttpResponse(ctx);
 
 		// Handshake
-		HandshakeHandler handshakeHandler = new NettyHandshakeHandler(handshakerFactory);
+		HandshakeHandler handshakeHandler = new DefaultHandshakeHandler(new NettyRequestUpgradeStrategy());
 		handshakeHandler.doHandshake(serverHttpRequest, serverHttpResponse,
 				webSocketHandler, Collections.<String, Object>emptyMap());
 	}
@@ -129,9 +125,5 @@ public class HttpMessageHandler extends
 		if (!isKeepAlive(req) || res.getStatus().code() != 200) {
 			f.addListener(ChannelFutureListener.CLOSE);
 		}
-	}
-
-	private static String getWebSocketLocation(FullHttpRequest req) {
-		return "ws://" + req.headers().get(HOST) + "/websocket";
 	}
 }

@@ -129,11 +129,12 @@ public class ChannelInboundWebSocketFrameHandler extends
 
 		@Override
 		public void handle(ChannelHandlerContext ctx, final CloseWebSocketFrame frame) {
-			handshaker.close(ctx.channel(), frame).addListener(new ChannelFutureListener() {
+			handshaker.close(ctx.channel(), frame.copy()).addListener(new ChannelFutureListener() {
 				@Override
 				public void operationComplete(ChannelFuture future) throws Exception {
-					CloseStatus closeStatus = new CloseStatus(frame.statusCode(), frame.reasonText());
-					handler.afterConnectionClosed(session, closeStatus );
+					int statusCode = frame.statusCode();
+					CloseStatus closeStatus = statusCode == -1 ? CloseStatus.NO_STATUS_CODE : new CloseStatus(statusCode, frame.reasonText());
+					handler.afterConnectionClosed(session, closeStatus);
 				}
 			});
 		}

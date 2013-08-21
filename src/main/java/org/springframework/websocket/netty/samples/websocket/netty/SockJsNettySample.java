@@ -53,6 +53,6 @@ public class SockJsNettySample {
 
 
 	public static void main(String[] args) throws Exception {
-		new SockJsNettySample().run(8080);
+		new SockJsNettySample().run(8081);
 	}
 }
