@@ -8,6 +8,7 @@ import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.TaskScheduler;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
+import org.springframework.web.socket.WebSocketHandler;
 import org.springframework.web.socket.server.DefaultHandshakeHandler;
 import org.springframework.web.socket.sockjs.SockJsService;
 import org.springframework.web.socket.sockjs.transport.TransportHandler;
@@ -15,10 +16,16 @@ import org.springframework.web.socket.sockjs.transport.handler.DefaultSockJsServ
 import org.springframework.web.socket.sockjs.transport.handler.WebSocketTransportHandler;
 import org.springframework.websocket.netty.NettyRequestUpgradeStrategy;
 import org.springframework.websocket.netty.samples.websocket.netty.echo.DefaultEchoService;
+import org.springframework.websocket.netty.samples.websocket.netty.echo.EchoWebSocketHandler;
 
 @Configuration
 @ComponentScan
 public class RootConfig {
+
+	@Bean
+	public WebSocketHandler websocketHandler() {
+		return new EchoWebSocketHandler(echoService());
+	}
 
 	@Bean
 	public DefaultEchoService echoService() {
